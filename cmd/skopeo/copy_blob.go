@@ -44,6 +44,7 @@ type copyBlobResult struct {
 type copyBlobOutcome struct {
 	blobInfo types.BlobInfo
 	kind     string
+	status   string
 }
 
 func copyBlobCmd(global *globalOptions) *cobra.Command {
@@ -139,7 +140,7 @@ func (opts *copyBlobOptions) run(args []string, stdout io.Writer) (retErr error)
 		return err
 	}
 
-	result.Status = "copied"
+	result.Status = outcome.status
 	result.Bytes = outcome.blobInfo.Size
 	result.MediaType = outcome.blobInfo.MediaType
 	result.BlobKind = outcome.kind
@@ -205,6 +206,18 @@ func (opts *copyBlobOptions) copyBlobOnce(ctx context.Context, sourceName, desti
 	}
 	defer dest.Close()
 
+	reused, reusedInfo, err := dest.TryReusingBlob(ctx, inputInfo, cache, false)
+	if err != nil {
+		return copyBlobOutcome{}, fmt.Errorf("Error checking destination blob %q: %w", inputInfo.Digest, err)
+	}
+	if reused {
+		if err := dest.Commit(ctx, nil); err != nil {
+			return copyBlobOutcome{}, fmt.Errorf("Error committing reused destination blob %q: %w", inputInfo.Digest, err)
+		}
+		reusedInfo = mergeBlobInfo(reusedInfo, inputInfo)
+		return copyBlobOutcome{blobInfo: reusedInfo, kind: kind, status: "already_exists"}, nil
+	}
+
 	reader, sourceSize, err := src.GetBlob(ctx, inputInfo, cache)
 	if err != nil {
 		return copyBlobOutcome{}, fmt.Errorf("Error reading source blob %q: %w", inputInfo.Digest, err)
@@ -227,7 +240,7 @@ func (opts *copyBlobOptions) copyBlobOnce(ctx context.Context, sourceName, desti
 		return copyBlobOutcome{}, fmt.Errorf("Error committing destination blob %q: %w", inputInfo.Digest, err)
 	}
 	copiedInfo.MediaType = inputInfo.MediaType
-	return copyBlobOutcome{blobInfo: copiedInfo, kind: kind}, nil
+	return copyBlobOutcome{blobInfo: copiedInfo, kind: kind, status: "copied"}, nil
 }
 
 type copyBlobDescriptor struct {
