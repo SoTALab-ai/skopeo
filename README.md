@@ -168,6 +168,55 @@ $ skopeo copy docker://quay.io/buildah/stable docker://registry.internal.company
 $ skopeo copy oci:busybox_ocilayout:latest dir:existingemptydirectory
 ```
 
+## Copying a single blob (SoTALab fork)
+
+This fork adds a stateless `copy-blob` command for distributed registry
+migration workers. It ensures that one content-addressed layer or image-config
+blob exists in the destination repository without copying the complete image:
+
+```console
+$ skopeo copy-blob \
+    docker://source.example.com/team/app:latest \
+    docker://destination.example.com/team/app:latest \
+    sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+{"digest":"sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef","status":"copied","bytes":1234567,"media_type":"application/vnd.oci.image.layer.v1.tar+gzip","blob_kind":"layer","duration_ms":842,"source":"docker://source.example.com/team/app:latest","destination":"docker://destination.example.com/team/app:latest"}
+```
+
+The source blob is streamed directly to the destination; no Docker daemon or
+temporary layer file is required. The command resolves the blob size, media
+type, and whether it is a config or layer from the source manifest, including
+the child manifests of a multi-platform image. It verifies the streamed
+content against the requested digest before reporting success.
+
+Before uploading, `copy-blob` asks the destination whether the digest is
+already available. This makes retries and duplicate tasks inexpensive and
+safe. Successful invocations emit exactly one JSON object to standard output:
+
+- `status: "copied"` means the blob was uploaded.
+- `status: "already_exists"` means the destination reused an existing blob.
+- `blob_kind` is `config`, `layer`, or `unknown` if the digest is not present
+  in the source manifest.
+
+Authentication and transport options follow the existing Skopeo conventions.
+For example, private registries can use credentials stored by `skopeo login`
+or explicit source and destination credentials:
+
+```console
+$ skopeo copy-blob \
+    --src-creds "$SOURCE_USER:$SOURCE_PASSWORD" \
+    --dest-creds "$DESTINATION_USER:$DESTINATION_PASSWORD" \
+    --retry-times 5 \
+    docker://source.example.com/team/app:latest \
+    docker://destination.example.com/team/app:latest \
+    sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+```
+
+`copy-blob` deliberately does not copy or publish manifests, tags, signatures,
+or other image metadata. A coordinator must publish those objects only after
+all referenced blobs are present. The Kubernetes worker contract built around
+this primitive is described in
+[`deploy/registry-clone/README.md`](deploy/registry-clone/README.md).
+
 ## Deleting images
 ```console
 $ skopeo delete docker://localhost:5000/imagename:latest

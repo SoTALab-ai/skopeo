@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: registry-clone-submit-tags
+  labels:
+    app.kubernetes.io/name: registry-clone
+data:
+  tags.txt: |
+    # source_ref target_ref
+    # docker://source.registry.example.com/ns/app:v1 docker://target.registry.example.com/ns/app:v1

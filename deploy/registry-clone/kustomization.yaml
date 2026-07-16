@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: registry-clone
+
+resources:
+  - namespace.yaml
+  - serviceaccount.yaml
+  - redis.yaml
+  - configmap.yaml
+  - secret.example.yaml
+  - metadata-worker.yaml
+  - blob-worker.yaml
+  - publish-worker.yaml
+  - metrics-services.yaml
+  - submit-tags-configmap.yaml
+  - submit-tags-job.yaml
+
+images:
+  - name: ghcr.io/sotalab-ai/skopeo
+    newTag: "1.25.1"

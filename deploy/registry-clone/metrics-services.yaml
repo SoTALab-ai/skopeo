@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-clone-metadata-worker
+  labels:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: metadata-worker
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: /metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: metadata-worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-clone-blob-worker
+  labels:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: blob-worker
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: /metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: blob-worker
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: registry-clone-publish-worker
+  labels:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: publish-worker
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+    prometheus.io/path: /metrics
+spec:
+  type: ClusterIP
+  ports:
+    - name: metrics
+      port: 9090
+      targetPort: metrics
+  selector:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: publish-worker

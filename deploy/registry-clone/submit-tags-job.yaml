@@ -1,0 +1,64 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: registry-clone-submit-tags
+  labels:
+    app.kubernetes.io/name: registry-clone
+    app.kubernetes.io/component: submit-tags
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: registry-clone
+        app.kubernetes.io/component: submit-tags
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: registry-clone
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: submit-tags
+          image: ghcr.io/sotalab-ai/skopeo:1.25.1
+          command:
+            - skopeo
+            - registry-clone
+            - submit-tags
+            - --file
+            - /input/tags.txt
+          envFrom:
+            - configMapRef:
+                name: registry-clone-config
+          volumeMounts:
+            - name: input
+              mountPath: /input
+              readOnly: true
+            - name: registry-auth
+              mountPath: /auth
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+      volumes:
+        - name: input
+          configMap:
+            name: registry-clone-submit-tags
+        - name: registry-auth
+          secret:
+            secretName: registry-clone-auth
+        - name: tmp
+          emptyDir: {}
